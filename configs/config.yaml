@@ -1,0 +1,8 @@
+database:
+  host: localhost # Where PostgreSQL is running
+  port: 5432 # Default PostgreSQL port
+  user: hackernews_user # Database username
+  password: hackernews_password # Database password
+  dbname: hackernews # Name of your database
+  sslmode: disable # For local development
+
