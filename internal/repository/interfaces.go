@@ -5,129 +5,126 @@ import (
 	"internship-project/internal/models"
 )
 
+// Common interface methods used across all repositories
+type BaseRepositoryInterface interface {
+	Exists(ctx context.Context, id int) (bool, error)
+	GetCount(ctx context.Context) (int, error)
+}
+
 type StoryRepository interface {
-	// CREATE OPERATIONS
-	CreateStory(ctx context.Context, story *models.Story) error
+	BaseRepositoryInterface
 
-	// READ OPERATIONS
-	GetStoryByID(ctx context.Context, id int) (*models.Story, error)
-	GetAllStories(ctx context.Context) ([]*models.Story, error)
-	GetRecentStories(ctx context.Context, limit int) ([]*models.Story, error)
-	GetStoriesByMinScore(ctx context.Context, minScore int) ([]*models.Story, error)
-	GetStoriesByAuthor(ctx context.Context, author string) ([]*models.Story, error)
-	GetStoriesByDateRange(ctx context.Context, start, end int64) ([]*models.Story, error)
+	// CRUD Operations
+	Create(ctx context.Context, story *models.Story) error
+	GetByID(ctx context.Context, id int) (*models.Story, error)
+	Update(ctx context.Context, story *models.Story) error
+	Delete(ctx context.Context, id int) error
 
-	// UPDATE OPERATIONS
-	UpdateStory(ctx context.Context, story *models.Story) error
-	UpdateStoriesCommentsCount(ctx context.Context, id int, count int) error
-	UpdateStoryScore(ctx context.Context, id int, score int) error
+	// Query Operations
+	GetAll(ctx context.Context) ([]*models.Story, error)
+	GetRecent(ctx context.Context, limit int) ([]*models.Story, error)
+	GetByMinScore(ctx context.Context, minScore int) ([]*models.Story, error)
+	GetByAuthor(ctx context.Context, author string) ([]*models.Story, error)
+	GetByDateRange(ctx context.Context, start, end int64) ([]*models.Story, error)
 
-	// DELETE OPERATIONS
-	DeleteStory(ctx context.Context, id int) error
-	DeleteStoriesByAuthor(ctx context.Context, author string) error
+	// Update specific fields
+	UpdateScore(ctx context.Context, id int, score int) error
+	UpdateCommentsCount(ctx context.Context, id int, count int) error
 
-	// UTILITY OPERATIONS
-	StoryExists(ctx context.Context, id int) (bool, error)
-	GetStoryCount(ctx context.Context) (int, error)
+	// Batch operations
+	CreateBatch(ctx context.Context, stories []*models.Story) error
+	DeleteByAuthor(ctx context.Context, author string) error
 }
 
 type CommentRepository interface {
-	// CREATE OPERATIONS
-	CreateComment(ctx context.Context, comment *models.Comment) error
+	BaseRepositoryInterface
 
-	// READ OPERATIONS
-	GetCommentByID(ctx context.Context, id int) (*models.Comment, error)
-	GetAllComments(ctx context.Context) ([]*models.Comment, error)
-	GetCommentsByStoryID(ctx context.Context, storyID int) ([]*models.Comment, error)
-	GetRecentComments(ctx context.Context, limit int) ([]*models.Comment, error)
-	GetCommentsByAuthor(ctx context.Context, author string) ([]*models.Comment, error)
-	GetCommentsByDateRange(ctx context.Context, start, end int64) ([]*models.Comment, error)
+	// CRUD Operations
+	Create(ctx context.Context, comment *models.Comment) error
+	GetByID(ctx context.Context, id int) (*models.Comment, error)
+	Update(ctx context.Context, comment *models.Comment) error
+	Delete(ctx context.Context, id int) error
 
-	// UPDATE OPERATIONS
-	UpdateComment(ctx context.Context, comment *models.Comment) error
-	UpdateCommentsScore(ctx context.Context, id int, score int) error
+	// Query Operations
+	GetAll(ctx context.Context) ([]*models.Comment, error)
+	GetByStoryID(ctx context.Context, storyID int) ([]*models.Comment, error)
+	GetRecent(ctx context.Context, limit int) ([]*models.Comment, error)
+	GetByAuthor(ctx context.Context, author string) ([]*models.Comment, error)
+	GetByDateRange(ctx context.Context, start, end int64) ([]*models.Comment, error)
 
-	// DELETE OPERATIONS
-	DeleteComment(ctx context.Context, id int) error
-	DeleteCommentsByAuthor(ctx context.Context, author string) error
-
-	// UTILITY OPERATIONS
-	CommentExists(ctx context.Context, id int) (bool, error)
-	GetCommentCount(ctx context.Context) (int, error)
+	// Batch operations
+	DeleteByAuthor(ctx context.Context, author string) error
 }
 
 type AskRepository interface {
-	// CREATE OPERATIONS
-	CreateAsk(ctx context.Context, ask *models.Ask) error
+	BaseRepositoryInterface
 
-	// READ OPERATIONS
-	GetAskByID(ctx context.Context, id int) (*models.Ask, error)
-	GetAllAsks(ctx context.Context) ([]*models.Ask, error)
-	GetRecentAsks(ctx context.Context, limit int) ([]*models.Ask, error)
-	GetAsksByScore(ctx context.Context, minScore int) ([]*models.Ask, error)
-	GetAsksByAuthor(ctx context.Context, author string) ([]*models.Ask, error)
-	GetAsksByDateRange(ctx context.Context, start, end int64) ([]*models.Ask, error)
+	// CRUD Operations
+	Create(ctx context.Context, ask *models.Ask) error
+	GetByID(ctx context.Context, id int) (*models.Ask, error)
+	Update(ctx context.Context, ask *models.Ask) error
+	Delete(ctx context.Context, id int) error
 
-	// UPDATE OPERATIONS
-	UpdateAsk(ctx context.Context, ask *models.Ask) error
-	UpdateAsksCommentsCount(ctx context.Context, id int, count int) error
-	UpdateAskScore(ctx context.Context, id int, score int) error
+	// Query Operations
+	GetAll(ctx context.Context) ([]*models.Ask, error)
+	GetRecent(ctx context.Context, limit int) ([]*models.Ask, error)
+	GetByMinScore(ctx context.Context, minScore int) ([]*models.Ask, error)
+	GetByAuthor(ctx context.Context, author string) ([]*models.Ask, error)
+	GetByDateRange(ctx context.Context, start, end int64) ([]*models.Ask, error)
 
-	// DELETE OPERATIONS
-	DeleteAsk(ctx context.Context, id int) error
-	DeleteAsksByAuthor(ctx context.Context, author string) error
+	// Update specific fields
+	UpdateScore(ctx context.Context, id int, score int) error
+	UpdateRepliesCount(ctx context.Context, id int, count int) error
 
-	// UTILITY OPERATIONS
-	AskExists(ctx context.Context, id int) (bool, error)
-	GetAskCount(ctx context.Context) (int, error)
+	// Batch operations
+	CreateBatch(ctx context.Context, asks []*models.Ask) error
+	DeleteByAuthor(ctx context.Context, author string) error
 }
 
 type JobRepository interface {
-	// CREATE OPERATIONS
-	CreateJob(ctx context.Context, job *models.Job) error
+	BaseRepositoryInterface
 
-	// READ OPERATIONS
-	GetJobByID(ctx context.Context, id int) (*models.Job, error)
-	GetAllJobs(ctx context.Context) ([]*models.Job, error)
-	GetRecentJobs(ctx context.Context, limit int) ([]*models.Job, error)
-	GetJobsByScore(ctx context.Context, minScore int) ([]*models.Job, error)
-	GetJobsByAuthor(ctx context.Context, author string) ([]*models.Job, error)
-	GetJobsByDateRange(ctx context.Context, start, end int64) ([]*models.Job, error)
+	// CRUD Operations
+	Create(ctx context.Context, job *models.Job) error
+	GetByID(ctx context.Context, id int) (*models.Job, error)
+	Update(ctx context.Context, job *models.Job) error
+	Delete(ctx context.Context, id int) error
 
-	// UPDATE OPERATIONS
-	UpdateJob(ctx context.Context, job *models.Job) error
-	UpdateJobsScore(ctx context.Context, id int, score int) error
+	// Query Operations
+	GetAll(ctx context.Context) ([]*models.Job, error)
+	GetRecent(ctx context.Context, limit int) ([]*models.Job, error)
+	GetByMinScore(ctx context.Context, minScore int) ([]*models.Job, error)
+	GetByAuthor(ctx context.Context, author string) ([]*models.Job, error)
+	GetByDateRange(ctx context.Context, start, end int64) ([]*models.Job, error)
 
-	// DELETE OPERATIONS
-	DeleteJob(ctx context.Context, id int) error
-	DeleteJobsByAuthor(ctx context.Context, author string) error
+	// Update specific fields
+	UpdateScore(ctx context.Context, id int, score int) error
 
-	// UTILITY OPERATIONS
-	JobExists(ctx context.Context, id int) (bool, error)
-	GetJobCount(ctx context.Context) (int, error)
+	// Batch operations
+	CreateBatch(ctx context.Context, jobs []*models.Job) error
+	DeleteByAuthor(ctx context.Context, author string) error
 }
 
 type PollRepository interface {
-	// CREATE OPERATIONS
-	CreatePoll(ctx context.Context, poll *models.Poll) error
+	BaseRepositoryInterface
 
-	// READ OPERATIONS
-	GetPollByID(ctx context.Context, id int) (*models.Poll, error)
-	GetAllPolls(ctx context.Context) ([]*models.Poll, error)
-	GetRecentPolls(ctx context.Context, limit int) ([]*models.Poll, error)
-	GetPollsByScore(ctx context.Context, minScore int) ([]*models.Poll, error)
-	GetPollsByAuthor(ctx context.Context, author string) ([]*models.Poll, error)
-	GetPollsByDateRange(ctx context.Context, start, end int64) ([]*models.Poll, error)
+	// CRUD Operations
+	Create(ctx context.Context, poll *models.Poll) error
+	GetByID(ctx context.Context, id int) (*models.Poll, error)
+	Update(ctx context.Context, poll *models.Poll) error
+	Delete(ctx context.Context, id int) error
 
-	// UPDATE OPERATIONS
-	UpdatePoll(ctx context.Context, poll *models.Poll) error
-	UpdatePollsScore(ctx context.Context, id int, score int) error
+	// Query Operations
+	GetAll(ctx context.Context) ([]*models.Poll, error)
+	GetRecent(ctx context.Context, limit int) ([]*models.Poll, error)
+	GetByMinScore(ctx context.Context, minScore int) ([]*models.Poll, error)
+	GetByAuthor(ctx context.Context, author string) ([]*models.Poll, error)
+	GetByDateRange(ctx context.Context, start, end int64) ([]*models.Poll, error)
 
-	// DELETE OPERATIONS
-	DeletePoll(ctx context.Context, id int) error
-	DeletePollsByAuthor(ctx context.Context, author string) error
+	// Update specific fields
+	UpdateScore(ctx context.Context, id int, score int) error
 
-	// UTILITY OPERATIONS
-	PollExists(ctx context.Context, id int) (bool, error)
-	GetPollCount(ctx context.Context) (int, error)
+	// Batch operations
+	CreateBatch(ctx context.Context, polls []*models.Poll) error
+	DeleteByAuthor(ctx context.Context, author string) error
 }

@@ -13,7 +13,6 @@ type Job struct {
 	Created_At int64  `json:"time" db:"created_at"`
 }
 
-// IsValid checks if the Job has valid data.
 func (j *Job) IsValid() bool {
-	return j.ID > 0 && j.Type == "Job" && j.Text != "" && j.Author != "" && j.Created_At > 0
+	return j.ID > 0 && j.Type == "Job" && j.Title != "" && j.Author != "" && j.Created_At > 0
 }

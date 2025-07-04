@@ -14,7 +14,6 @@ type Ask struct {
 	Created_At    int64  `json:"time" db:"created_at"`
 }
 
-// IsValid checks if the Ask has valid data.
 func (a *Ask) IsValid() bool {
 	return a.ID > 0 && a.Type == "Ask" && a.Title != "" && a.Author != "" && a.Created_At > 0
 }
