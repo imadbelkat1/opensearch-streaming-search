@@ -30,9 +30,9 @@ func (r *CommentRepository) Create(ctx context.Context, comment *models.Comment)
 	}
 
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO comments (id, story_id, type, text, author, created_at, parent_id, reply_ids) 
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		comment.ID, comment.StoryID, comment.Type, comment.Text,
+		`INSERT INTO comments (id, type, text, author, created_at, parent_id, reply_ids) 
+		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		comment.ID, comment.Type, comment.Text,
 		comment.Author, comment.Created_At, comment.Parent, replyIds)
 	return err
 }
@@ -43,9 +43,9 @@ func (r *CommentRepository) GetByID(ctx context.Context, id int) (*models.Commen
 	var replyIds pq.Int64Array
 
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, story_id, type, text, author, created_at, parent_id, reply_ids 
+		`SELECT id, type, text, author, created_at, parent_id, reply_ids 
 		 FROM comments WHERE id = $1`, id).Scan(
-		&comment.ID, &comment.StoryID, &comment.Type, &comment.Text,
+		&comment.ID, &comment.Type, &comment.Text,
 		&comment.Author, &comment.Created_At, &comment.Parent, &replyIds)
 
 	if err != nil {
@@ -67,9 +67,9 @@ func (r *CommentRepository) Update(ctx context.Context, comment *models.Comment)
 	}
 
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE comments SET story_id=$2, type=$3, text=$4, author=$5, 
-		 created_at=$6, parent_id=$7, reply_ids=$8 WHERE id=$1`,
-		comment.ID, comment.StoryID, comment.Type, comment.Text,
+		`UPDATE comments SET  type=$2, text=$3, author=$4, 
+		 created_at=$5, parent_id=$6, reply_ids=$7 WHERE id=$1`,
+		comment.ID, comment.Type, comment.Text,
 		comment.Author, comment.Created_At, comment.Parent, replyIds)
 	return err
 }
@@ -83,20 +83,8 @@ func (r *CommentRepository) Delete(ctx context.Context, id int) error {
 // GetAll retrieves all comments
 func (r *CommentRepository) GetAll(ctx context.Context) ([]*models.Comment, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, story_id, type, text, author, created_at, parent_id, reply_ids 
+		`SELECT id, type, text, author, created_at, parent_id, reply_ids 
 		 FROM comments ORDER BY created_at DESC`)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	return scanComments(rows)
-}
-
-// GetByStoryID retrieves comments by story ID
-func (r *CommentRepository) GetByStoryID(ctx context.Context, storyID int) ([]*models.Comment, error) {
-	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, story_id, type, text, author, created_at, parent_id, reply_ids 
-		 FROM comments WHERE story_id = $1 ORDER BY created_at ASC`, storyID)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +95,7 @@ func (r *CommentRepository) GetByStoryID(ctx context.Context, storyID int) ([]*m
 // GetRecent retrieves recent comments
 func (r *CommentRepository) GetRecent(ctx context.Context, limit int) ([]*models.Comment, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, story_id, type, text, author, created_at, parent_id, reply_ids 
+		`SELECT id, type, text, author, created_at, parent_id, reply_ids 
 		 FROM comments ORDER BY created_at DESC LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
@@ -119,7 +107,7 @@ func (r *CommentRepository) GetRecent(ctx context.Context, limit int) ([]*models
 // GetByAuthor retrieves comments by author
 func (r *CommentRepository) GetByAuthor(ctx context.Context, author string) ([]*models.Comment, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, story_id, type, text, author, created_at, parent_id, reply_ids 
+		`SELECT id, type, text, author, created_at, parent_id, reply_ids 
 		 FROM comments WHERE author = $1 ORDER BY created_at DESC`, author)
 	if err != nil {
 		return nil, err
@@ -131,7 +119,7 @@ func (r *CommentRepository) GetByAuthor(ctx context.Context, author string) ([]*
 // GetByDateRange retrieves comments within date range
 func (r *CommentRepository) GetByDateRange(ctx context.Context, start, end int64) ([]*models.Comment, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, story_id, type, text, author, created_at, parent_id, reply_ids 
+		`SELECT id, type, text, author, created_at, parent_id, reply_ids 
 		 FROM comments WHERE created_at BETWEEN $1 AND $2 ORDER BY created_at DESC`, start, end)
 	if err != nil {
 		return nil, err
@@ -168,7 +156,7 @@ func scanComments(rows *sql.Rows) ([]*models.Comment, error) {
 		comment := &models.Comment{}
 		var replyIds pq.Int64Array
 
-		err := rows.Scan(&comment.ID, &comment.StoryID, &comment.Type, &comment.Text,
+		err := rows.Scan(&comment.ID, &comment.Type, &comment.Text,
 			&comment.Author, &comment.Created_At, &comment.Parent, &replyIds)
 		if err != nil {
 			return nil, err

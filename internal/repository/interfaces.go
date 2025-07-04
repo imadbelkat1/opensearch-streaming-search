@@ -33,6 +33,7 @@ type StoryRepository interface {
 
 	// Batch operations
 	CreateBatch(ctx context.Context, stories []*models.Story) error
+	CreateBatchWithExistingIDs(ctx context.Context, stories []*models.Story) error
 	DeleteByAuthor(ctx context.Context, author string) error
 }
 
@@ -47,7 +48,6 @@ type CommentRepository interface {
 
 	// Query Operations
 	GetAll(ctx context.Context) ([]*models.Comment, error)
-	GetByStoryID(ctx context.Context, storyID int) ([]*models.Comment, error)
 	GetRecent(ctx context.Context, limit int) ([]*models.Comment, error)
 	GetByAuthor(ctx context.Context, author string) ([]*models.Comment, error)
 	GetByDateRange(ctx context.Context, start, end int64) ([]*models.Comment, error)
@@ -127,4 +127,33 @@ type PollRepository interface {
 	// Batch operations
 	CreateBatch(ctx context.Context, polls []*models.Poll) error
 	DeleteByAuthor(ctx context.Context, author string) error
+}
+
+type PollOptionRepository interface {
+	BaseRepositoryInterface
+
+	// CRUD Operations
+	Create(ctx context.Context, pollOption *models.PollOption) error
+	GetByID(ctx context.Context, id int) (*models.PollOption, error)
+	Update(ctx context.Context, pollOption *models.PollOption) error
+	Delete(ctx context.Context, id int) error
+
+	// Query Operations
+	GetAll(ctx context.Context) ([]*models.PollOption, error)
+	GetByPollID(ctx context.Context, pollID int) ([]*models.PollOption, error)
+	GetRecent(ctx context.Context, limit int) ([]*models.PollOption, error)
+	GetByAuthor(ctx context.Context, author string) ([]*models.PollOption, error)
+	GetByDateRange(ctx context.Context, start, end int64) ([]*models.PollOption, error)
+	IncrementVotes(ctx context.Context, id int) error
+	GetVoteCount(ctx context.Context, id int) (int, error)
+	CountByPollID(ctx context.Context, pollID int) (int, error)
+	GetTopVoted(ctx context.Context, pollID int, limit int) ([]*models.PollOption, error)
+
+	// Update specific fields
+	UpdateVotes(ctx context.Context, id int, votes int) error
+
+	// Batch operations
+	CreateBatch(ctx context.Context, pollOptions []*models.PollOption) error
+	DeleteByAuthor(ctx context.Context, author string) error
+	DeleteByPollID(ctx context.Context, pollID int) error
 }

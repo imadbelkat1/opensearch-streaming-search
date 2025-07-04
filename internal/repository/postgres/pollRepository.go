@@ -24,9 +24,9 @@ func NewPollRepository() repository.PollRepository {
 
 // Create inserts a new poll
 func (r *PollRepository) Create(ctx context.Context, poll *models.Poll) error {
-	pollOptions := make(pq.StringArray, len(poll.PollOptions))
+	pollOptions := make(pq.Int64Array, len(poll.PollOptions))
 	for i, v := range poll.PollOptions {
-		pollOptions[i] = v
+		pollOptions[i] = int64(v)
 	}
 
 	replyIds := make(pq.Int64Array, len(poll.Reply_Ids))
@@ -45,7 +45,7 @@ func (r *PollRepository) Create(ctx context.Context, poll *models.Poll) error {
 // GetByID retrieves a poll by ID
 func (r *PollRepository) GetByID(ctx context.Context, id int) (*models.Poll, error) {
 	poll := &models.Poll{}
-	var pollOptions pq.StringArray
+	var pollOptions pq.Int64Array
 	var replyIds pq.Int64Array
 
 	err := r.db.QueryRowContext(ctx,
@@ -58,7 +58,11 @@ func (r *PollRepository) GetByID(ctx context.Context, id int) (*models.Poll, err
 		return nil, err
 	}
 
-	poll.PollOptions = []string(pollOptions)
+	poll.PollOptions = make([]int, len(pollOptions))
+	for i, v := range pollOptions {
+		poll.PollOptions[i] = int(v)
+	}
+
 	poll.Reply_Ids = make([]int, len(replyIds))
 	for i, v := range replyIds {
 		poll.Reply_Ids[i] = int(v)
@@ -68,9 +72,9 @@ func (r *PollRepository) GetByID(ctx context.Context, id int) (*models.Poll, err
 
 // Update updates an existing poll
 func (r *PollRepository) Update(ctx context.Context, poll *models.Poll) error {
-	pollOptions := make(pq.StringArray, len(poll.PollOptions))
+	pollOptions := make(pq.Int64Array, len(poll.PollOptions))
 	for i, v := range poll.PollOptions {
-		pollOptions[i] = v
+		pollOptions[i] = int64(v)
 	}
 
 	replyIds := make(pq.Int64Array, len(poll.Reply_Ids))
@@ -175,9 +179,9 @@ func (r *PollRepository) CreateBatch(ctx context.Context, polls []*models.Poll) 
 	defer stmt.Close()
 
 	for _, poll := range polls {
-		pollOptions := make(pq.StringArray, len(poll.PollOptions))
+		pollOptions := make(pq.Int64Array, len(poll.PollOptions))
 		for i, v := range poll.PollOptions {
-			pollOptions[i] = v
+			pollOptions[i] = int64(v)
 		}
 
 		replyIds := make(pq.Int64Array, len(poll.Reply_Ids))
@@ -220,7 +224,7 @@ func scanPolls(rows *sql.Rows) ([]*models.Poll, error) {
 	var polls []*models.Poll
 	for rows.Next() {
 		poll := &models.Poll{}
-		var pollOptions pq.StringArray
+		var pollOptions pq.Int64Array
 		var replyIds pq.Int64Array
 
 		err := rows.Scan(&poll.ID, &poll.Type, &poll.Title, &poll.Score,
@@ -229,7 +233,11 @@ func scanPolls(rows *sql.Rows) ([]*models.Poll, error) {
 			return nil, err
 		}
 
-		poll.PollOptions = []string(pollOptions)
+		poll.PollOptions = make([]int, len(pollOptions))
+		for i, v := range pollOptions {
+			poll.PollOptions[i] = int(v)
+		}
+
 		poll.Reply_Ids = make([]int, len(replyIds))
 		for i, v := range replyIds {
 			poll.Reply_Ids[i] = int(v)

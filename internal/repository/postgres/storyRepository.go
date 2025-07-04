@@ -6,6 +6,8 @@ import (
 	"internship-project/internal/models"
 	"internship-project/internal/repository"
 	"internship-project/pkg/database"
+
+	"github.com/lib/pq"
 )
 
 // StoryRepository implements repository.StoryRepository
@@ -22,35 +24,53 @@ func NewStoryRepository() repository.StoryRepository {
 
 // Create inserts a new story
 func (r *StoryRepository) Create(ctx context.Context, story *models.Story) error {
+	CommentsIds := make(pq.Int64Array, len(story.Comments_ids))
+	for i, v := range story.Comments_ids {
+		CommentsIds[i] = int64(v)
+	}
+
 	_, err := r.db.ExecContext(ctx,
-		`INSERT INTO stories (id, type, title, url, score, author, created_at, comments_count) 
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		`INSERT INTO stories (id, type, title, url, score, author, created_at, comments_ids, comments_count) 
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		story.ID, story.Type, story.Title, story.URL, story.Score,
-		story.Author, story.Created_At, story.Comments_count)
+		story.Author, story.Created_At, CommentsIds, story.Comments_count)
 	return err
 }
 
 // GetByID retrieves a story by ID
 func (r *StoryRepository) GetByID(ctx context.Context, id int) (*models.Story, error) {
 	story := &models.Story{}
+	var commentsIds pq.Int64Array
+
 	err := r.db.QueryRowContext(ctx,
-		`SELECT id, type, title, url, score, author, created_at, comments_count 
+		`SELECT id, type, title, url, score, author, created_at, comments_ids, comments_count 
 		 FROM stories WHERE id = $1`, id).Scan(
 		&story.ID, &story.Type, &story.Title, &story.URL, &story.Score,
-		&story.Author, &story.Created_At, &story.Comments_count)
+		&story.Author, &story.Created_At, &commentsIds, &story.Comments_count)
 	if err != nil {
 		return nil, err
 	}
+
+	story.Comments_ids = make([]int, len(commentsIds))
+	for i, v := range commentsIds {
+		story.Comments_ids[i] = int(v)
+	}
+
 	return story, nil
 }
 
 // Update updates an existing story
 func (r *StoryRepository) Update(ctx context.Context, story *models.Story) error {
+	CommentsIds := make(pq.Int64Array, len(story.Comments_ids))
+	for i, v := range story.Comments_ids {
+		CommentsIds[i] = int64(v)
+	}
+
 	_, err := r.db.ExecContext(ctx,
 		`UPDATE stories SET type=$2, title=$3, url=$4, score=$5, author=$6, 
-		 created_at=$7, comments_count=$8 WHERE id=$1`,
+		 created_at=$7,comments_ids=$8, comments_count=$9 WHERE id=$1`,
 		story.ID, story.Type, story.Title, story.URL, story.Score,
-		story.Author, story.Created_At, story.Comments_count)
+		story.Author, story.Created_At, CommentsIds, story.Comments_count)
 	return err
 }
 
@@ -63,7 +83,7 @@ func (r *StoryRepository) Delete(ctx context.Context, id int) error {
 // GetAll retrieves all stories
 func (r *StoryRepository) GetAll(ctx context.Context) ([]*models.Story, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, type, title, url, score, author, created_at, comments_count 
+		`SELECT id, type, title, url, score, author, created_at, comments_ids, comments_count 
 		 FROM stories ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
@@ -75,7 +95,7 @@ func (r *StoryRepository) GetAll(ctx context.Context) ([]*models.Story, error) {
 // GetRecent retrieves recent stories
 func (r *StoryRepository) GetRecent(ctx context.Context, limit int) ([]*models.Story, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, type, title, url, score, author, created_at, comments_count 
+		`SELECT id, type, title, url, score, author, created_at, comments_ids, comments_count 
 		 FROM stories ORDER BY created_at DESC LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
@@ -87,7 +107,7 @@ func (r *StoryRepository) GetRecent(ctx context.Context, limit int) ([]*models.S
 // GetByMinScore retrieves stories with minimum score
 func (r *StoryRepository) GetByMinScore(ctx context.Context, minScore int) ([]*models.Story, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, type, title, url, score, author, created_at, comments_count 
+		`SELECT id, type, title, url, score, author, created_at, comments_ids, comments_count 
 		 FROM stories WHERE score >= $1 ORDER BY score DESC`, minScore)
 	if err != nil {
 		return nil, err
@@ -99,7 +119,7 @@ func (r *StoryRepository) GetByMinScore(ctx context.Context, minScore int) ([]*m
 // GetByAuthor retrieves stories by author
 func (r *StoryRepository) GetByAuthor(ctx context.Context, author string) ([]*models.Story, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, type, title, url, score, author, created_at, comments_count 
+		`SELECT id, type, title, url, score, author, created_at, comments_ids, comments_count 
 		 FROM stories WHERE author = $1 ORDER BY created_at DESC`, author)
 	if err != nil {
 		return nil, err
@@ -111,7 +131,7 @@ func (r *StoryRepository) GetByAuthor(ctx context.Context, author string) ([]*mo
 // GetByDateRange retrieves stories within date range
 func (r *StoryRepository) GetByDateRange(ctx context.Context, start, end int64) ([]*models.Story, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, type, title, url, score, author, created_at, comments_count 
+		`SELECT id, type, title, url, score, author, created_at, comments_ids, comments_count 
 		 FROM stories WHERE created_at BETWEEN $1 AND $2 ORDER BY created_at DESC`, start, end)
 	if err != nil {
 		return nil, err
@@ -123,6 +143,13 @@ func (r *StoryRepository) GetByDateRange(ctx context.Context, start, end int64) 
 // UpdateScore updates story score
 func (r *StoryRepository) UpdateScore(ctx context.Context, id int, score int) error {
 	_, err := r.db.ExecContext(ctx, `UPDATE stories SET score = $1 WHERE id = $2`, score, id)
+	return err
+}
+
+// Update comments IDs
+func (r *StoryRepository) UpdateCommentsIDs(ctx context.Context, id int, commentsIDs []int) error {
+	_, err := r.db.ExecContext(ctx, `UPDATE stories SET comments_ids = $1 WHERE id = $2`,
+		pq.Array(commentsIDs), id)
 	return err
 }
 
@@ -143,6 +170,31 @@ func (r *StoryRepository) CreateBatch(ctx context.Context, stories []*models.Sto
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO stories (id, type, title, url, score, author, created_at, comments_count) 
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, story := range stories {
+		_, err := stmt.ExecContext(ctx, story.ID, story.Type, story.Title, story.URL,
+			story.Score, story.Author, story.Created_At, story.Comments_count)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+func (r *StoryRepository) CreateBatchWithExistingIDs(ctx context.Context, stories []*models.Story) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx,
+		`INSERT INTO stories (id, type, title, url, score, author, created_at, comments_count) 
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO NOTHING`)
 	if err != nil {
 		return err
 	}
@@ -184,11 +236,19 @@ func scanStories(rows *sql.Rows) ([]*models.Story, error) {
 	var stories []*models.Story
 	for rows.Next() {
 		story := &models.Story{}
+		var commentsIds pq.Int64Array
+
 		err := rows.Scan(&story.ID, &story.Type, &story.Title, &story.URL,
-			&story.Score, &story.Author, &story.Created_At, &story.Comments_count)
+			&story.Score, &story.Author, &story.Created_At, &commentsIds, &story.Comments_count)
 		if err != nil {
 			return nil, err
 		}
+
+		story.Comments_ids = make([]int, len(commentsIds))
+		for i, v := range commentsIds {
+			story.Comments_ids[i] = int(v)
+		}
+
 		stories = append(stories, story)
 	}
 	return stories, rows.Err()

@@ -1,3 +1,4 @@
+
 -- Stories table
 CREATE TABLE IF NOT EXISTS stories (
     id INTEGER PRIMARY KEY,
@@ -7,6 +8,7 @@ CREATE TABLE IF NOT EXISTS stories (
     score INTEGER DEFAULT 0 CHECK (score >= 0),
     author VARCHAR(255) NOT NULL,
     created_at BIGINT NOT NULL,
+    comments_ids INTEGER[] DEFAULT '{}',     -- IDs of comments associated with the story
     comments_count INTEGER DEFAULT 0 CHECK (comments_count >= 0)
 );
 
@@ -35,27 +37,36 @@ CREATE TABLE IF NOT EXISTS jobs (
     created_at BIGINT NOT NULL
 );
 
--- Comments table (FIXED - matches updated model)
+-- Comments table 
 CREATE TABLE IF NOT EXISTS comments (
-    story_id INTEGER NOT NULL,
     id INTEGER PRIMARY KEY,
     type VARCHAR(10) DEFAULT 'Comment' NOT NULL,
     text TEXT NOT NULL,
     author VARCHAR(255) NOT NULL,
     created_at BIGINT NOT NULL,
     parent_id INTEGER,
-    reply_ids INTEGER[] DEFAULT '{}',
-    FOREIGN KEY (story_id) REFERENCES stories(id) ON DELETE CASCADE
+    reply_ids INTEGER[] DEFAULT '{}'
 );
 
--- Polls table (FIXED - matches updated model)
+-- Polls table
 CREATE TABLE IF NOT EXISTS polls (
     id INTEGER PRIMARY KEY,
     type VARCHAR(10) DEFAULT 'Poll' NOT NULL,
     title TEXT NOT NULL,
     score INTEGER DEFAULT 0 CHECK (score >= 0),
     author VARCHAR(255) NOT NULL,
-    poll_options TEXT[] DEFAULT '{}',
+    poll_options INTEGER[] DEFAULT '{}',
     reply_ids INTEGER[] DEFAULT '{}',
     created_at BIGINT NOT NULL
+);
+
+-- Poll Options table
+CREATE TABLE IF NOT EXISTS poll_options (
+    id INTEGER PRIMARY KEY NOT NULL,
+    type VARCHAR(10) DEFAULT 'PollOption' NOT NULL,
+    poll_id INTEGER NOT NULL,
+    author VARCHAR(255) NOT NULL,
+    option_text TEXT NOT NULL,
+    created_at BIGINT NOT NULL,
+    votes INTEGER DEFAULT 0 CHECK (votes >= 0)
 );

@@ -155,6 +155,7 @@ func Migrate() error {
 	}
 
 	schema := `
+
 -- Stories table
 CREATE TABLE IF NOT EXISTS stories (
     id INTEGER PRIMARY KEY,
@@ -164,6 +165,7 @@ CREATE TABLE IF NOT EXISTS stories (
     score INTEGER DEFAULT 0 CHECK (score >= 0),
     author VARCHAR(255) NOT NULL,
     created_at BIGINT NOT NULL,
+    comments_ids INTEGER[] DEFAULT '{}',
     comments_count INTEGER DEFAULT 0 CHECK (comments_count >= 0)
 );
 
@@ -192,17 +194,15 @@ CREATE TABLE IF NOT EXISTS jobs (
     created_at BIGINT NOT NULL
 );
 
--- Comments table
+-- Comments table 
 CREATE TABLE IF NOT EXISTS comments (
-    story_id INTEGER NOT NULL,
     id INTEGER PRIMARY KEY,
     type VARCHAR(10) DEFAULT 'Comment' NOT NULL,
     text TEXT NOT NULL,
     author VARCHAR(255) NOT NULL,
     created_at BIGINT NOT NULL,
     parent_id INTEGER,
-    reply_ids INTEGER[] DEFAULT '{}',
-    FOREIGN KEY (story_id) REFERENCES stories(id) ON DELETE CASCADE
+    reply_ids INTEGER[] DEFAULT '{}'
 );
 
 -- Polls table
@@ -217,24 +217,16 @@ CREATE TABLE IF NOT EXISTS polls (
     created_at BIGINT NOT NULL
 );
 
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_stories_author ON stories(author);
-CREATE INDEX IF NOT EXISTS idx_stories_created_at ON stories(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_stories_score ON stories(score DESC);
-
-CREATE INDEX IF NOT EXISTS idx_asks_author ON asks(author);
-CREATE INDEX IF NOT EXISTS idx_asks_created_at ON asks(created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_asks_score ON asks(score DESC);
-
-CREATE INDEX IF NOT EXISTS idx_jobs_author ON jobs(author);
-CREATE INDEX IF NOT EXISTS idx_jobs_created_at ON jobs(created_at DESC);
-
-CREATE INDEX IF NOT EXISTS idx_comments_story_id ON comments(story_id);
-CREATE INDEX IF NOT EXISTS idx_comments_author ON comments(author);
-CREATE INDEX IF NOT EXISTS idx_comments_parent_id ON comments(parent_id);
-
-CREATE INDEX IF NOT EXISTS idx_polls_author ON polls(author);
-CREATE INDEX IF NOT EXISTS idx_polls_created_at ON polls(created_at DESC);`
+-- Poll Options table
+CREATE TABLE IF NOT EXISTS poll_options (
+    id INTEGER PRIMARY KEY,
+    type VARCHAR(10) DEFAULT 'PollOption' NOT NULL,
+    poll_id INTEGER NOT NULL,
+    author VARCHAR(255) NOT NULL,
+    option_text TEXT NOT NULL,
+    created_at BIGINT NOT NULL,
+    votes INTEGER DEFAULT 0 CHECK (votes >= 0)
+);`
 
 	_, err := db.Exec(schema)
 	if err != nil {
