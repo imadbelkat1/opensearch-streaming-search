@@ -144,7 +144,6 @@ type PollOptionRepository interface {
 	GetRecent(ctx context.Context, limit int) ([]*models.PollOption, error)
 	GetByAuthor(ctx context.Context, author string) ([]*models.PollOption, error)
 	GetByDateRange(ctx context.Context, start, end int64) ([]*models.PollOption, error)
-	IncrementVotes(ctx context.Context, id int) error
 	GetVoteCount(ctx context.Context, id int) (int, error)
 	CountByPollID(ctx context.Context, pollID int) (int, error)
 	GetTopVoted(ctx context.Context, pollID int, limit int) ([]*models.PollOption, error)

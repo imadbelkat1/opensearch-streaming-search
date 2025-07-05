@@ -238,25 +238,6 @@ func (r *PollOptionRepository) DeleteByPollID(ctx context.Context, pollID int) e
 
 // Additional helper methods
 
-// IncrementVotes atomically increments the vote count
-func (r *PollOptionRepository) IncrementVotes(ctx context.Context, id int) error {
-	result, err := r.db.ExecContext(ctx, `UPDATE poll_options SET votes = votes + 1 WHERE id = $1`, id)
-	if err != nil {
-		return err
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return err
-	}
-
-	if rowsAffected == 0 {
-		return fmt.Errorf("poll option not found with id: %d", id)
-	}
-
-	return nil
-}
-
 // GetVoteCount retrieves the current vote count
 func (r *PollOptionRepository) GetVoteCount(ctx context.Context, id int) (int, error) {
 	var votes int

@@ -3,7 +3,6 @@ package models
 // Comment represents a Hacker News comment
 type Comment struct {
 	ID         int    `json:"id" db:"id"`
-	StoryID    int    `json:"story_id" db:"story_id"`
 	Type       string `json:"type" db:"type"`
 	Text       string `json:"text" db:"text"`
 	Author     string `json:"by" db:"author"`
