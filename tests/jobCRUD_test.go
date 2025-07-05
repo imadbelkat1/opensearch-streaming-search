@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"math/rand"
 	"testing"
 	"time"
 
@@ -15,14 +16,15 @@ func TestCreateJob(t *testing.T) {
 
 	ctx := context.Background()
 	repo := postgres.NewJobRepository()
+	randomNum := rand.Intn(2000)
 
 	job := &models.Job{
-		ID:         4101,
+		ID:         randomNum,
 		Type:       "job",
 		Title:      "Senior Go Developer at TechCorp (Remote/Hybrid)",
 		Text:       "We're looking for experienced Go developers to join our growing team. Competitive salary, great benefits, and flexible work arrangements.",
 		URL:        "https://techcorp.com/careers/senior-go-dev-2025",
-		Score:      55,
+		Score:      rand.Intn(50),
 		Author:     "enhanced_techcorp_hr",
 		Created_At: time.Now().Unix(),
 	}
@@ -41,7 +43,7 @@ func TestJobGetByID(t *testing.T) {
 
 	ctx := context.Background()
 	repo := postgres.NewJobRepository()
-	id := 4001
+	id := 35
 
 	job, err := repo.GetByID(ctx, id)
 	if err != nil {
@@ -63,7 +65,7 @@ func TestJobUpdate(t *testing.T) {
 	repo := postgres.NewJobRepository()
 
 	job := &models.Job{
-		ID:         4001,
+		ID:         35,
 		Type:       "job",
 		Title:      "Updated: Lead Go Developer at TechCorp (Remote/On-site)",
 		Text:       "Updated job description with new requirements and enhanced benefits package. Looking for experienced Go developers with leadership skills.",
@@ -109,14 +111,14 @@ func TestJobUpdateScore(t *testing.T) {
 	ctx := context.Background()
 	repo := postgres.NewJobRepository()
 
-	err := repo.UpdateScore(ctx, 4001, 90)
+	err := repo.UpdateScore(ctx, 35, 90)
 	if err != nil {
 		t.Errorf("Failed to update job score: %v", err)
 		return
 	}
 
 	// Verify score update
-	retrieved, err := repo.GetByID(ctx, 4001)
+	retrieved, err := repo.GetByID(ctx, 35)
 	if err != nil {
 		t.Errorf("Failed to get job after score update: %v", err)
 		return
@@ -236,7 +238,7 @@ func TestJobExists(t *testing.T) {
 	ctx := context.Background()
 	repo := postgres.NewJobRepository()
 
-	exists, err := repo.Exists(ctx, 4001)
+	exists, err := repo.Exists(ctx, 35)
 	if err != nil {
 		t.Errorf("Failed to check job existence: %v", err)
 		return
