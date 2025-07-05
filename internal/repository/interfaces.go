@@ -11,6 +11,43 @@ type BaseRepositoryInterface interface {
 	GetCount(ctx context.Context) (int, error)
 }
 
+type UserRepository interface {
+	BaseRepositoryInterface
+
+	// CRUD Operations
+	Create(ctx context.Context, user *models.User) error
+	GetByIDString(ctx context.Context, id string) (*models.User, error)
+	Update(ctx context.Context, user *models.User) error
+	Delete(ctx context.Context, id string) error
+
+	// Query Operations
+	GetAll(ctx context.Context) ([]*models.User, error)
+	GetRecent(ctx context.Context, limit int) ([]*models.User, error)
+	GetByMinKarma(ctx context.Context, minKarma int) ([]*models.User, error)
+	GetByDateRange(ctx context.Context, start, end int64) ([]*models.User, error)
+	GetTopByKarma(ctx context.Context, limit int) ([]*models.User, error)
+	GetByKarmaRange(ctx context.Context, minKarma, maxKarma int) ([]*models.User, error)
+	GetUsersWithSubmissions(ctx context.Context, minSubmissions int) ([]*models.User, error)
+
+	// Update specific fields
+	UpdateKarma(ctx context.Context, id string, karma int) error
+	UpdateAbout(ctx context.Context, id string, about string) error
+	AddSubmission(ctx context.Context, userID string, itemID int) error
+	RemoveSubmission(ctx context.Context, userID string, itemID int) error
+
+	// Batch operations
+	CreateBatch(ctx context.Context, users []*models.User) error
+	UpdateKarmaBatch(ctx context.Context, karmaUpdates map[int]int) error
+
+	// Submission related operations
+	GetSubmittedIDsByID(ctx context.Context, id string) ([]int, error)
+	GetSubmissionCount(ctx context.Context, id string) (int, error)
+
+	// Validation and utility
+	UserExists(ctx context.Context, id string) (bool, error)
+	GetUserIDByUsername(ctx context.Context, username string) (int, error)
+}
+
 type StoryRepository interface {
 	BaseRepositoryInterface
 

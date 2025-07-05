@@ -1,4 +1,12 @@
-
+-- Users Table
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    karma INTEGER NOT NULL DEFAULT 0 CHECK (karma >= 0),
+    about TEXT NOT NULL DEFAULT '',
+    created_at BIGINT NOT NULL,
+    submitted_ids INTEGER[] DEFAULT '{}'
+);
 -- Stories table
 CREATE TABLE IF NOT EXISTS stories (
     id INTEGER PRIMARY KEY,

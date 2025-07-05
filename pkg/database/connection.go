@@ -81,6 +81,50 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
+// DropAndRecreateDatabase drops the existing database and creates a new one
+func DropAndRecreateDatabase(config *Config) error {
+	if config == nil {
+		config = GetDefaultConfig()
+	}
+
+	log.Printf("Dropping and recreating database: %s", config.DBName)
+
+	// Connect to postgres database to drop/create target database
+	tempConfig := *config
+	tempConfig.DBName = "postgres"
+
+	connectionString := fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		tempConfig.Host, tempConfig.Port, tempConfig.User, tempConfig.Password, tempConfig.DBName, tempConfig.SSLMode,
+	)
+
+	tempDB, err := sql.Open("postgres", connectionString)
+	if err != nil {
+		return fmt.Errorf("failed to connect to postgres database: %w", err)
+	}
+	defer tempDB.Close()
+
+	// Test connection
+	if err := tempDB.Ping(); err != nil {
+		return fmt.Errorf("failed to ping postgres database: %w", err)
+	}
+
+	// Drop database if exists
+	_, err = tempDB.Exec(fmt.Sprintf("DROP DATABASE IF EXISTS %s", config.DBName))
+	if err != nil {
+		return fmt.Errorf("failed to drop database: %w", err)
+	}
+
+	// Create database
+	_, err = tempDB.Exec(fmt.Sprintf("CREATE DATABASE %s", config.DBName))
+	if err != nil {
+		return fmt.Errorf("failed to create database: %w", err)
+	}
+
+	log.Printf("Successfully recreated database: %s", config.DBName)
+	return nil
+}
+
 // Connect establishes database connection with provided config
 func Connect(config *Config) error {
 	if config == nil {
@@ -148,14 +192,54 @@ func Health() error {
 	return nil
 }
 
+// CleanDatabase drops all tables and recreates them
+func CleanDatabase() error {
+	if db == nil {
+		return fmt.Errorf("database not initialized")
+	}
+
+	log.Println("Cleaning database - dropping all tables...")
+
+	// Drop all tables in reverse order to handle dependencies
+	dropTables := []string{
+		"DROP TABLE IF EXISTS poll_options CASCADE",
+		"DROP TABLE IF EXISTS polls CASCADE",
+		"DROP TABLE IF EXISTS comments CASCADE",
+		"DROP TABLE IF EXISTS jobs CASCADE",
+		"DROP TABLE IF EXISTS asks CASCADE",
+		"DROP TABLE IF EXISTS stories CASCADE",
+		"DROP TABLE IF EXISTS users CASCADE",
+	}
+
+	for _, dropSQL := range dropTables {
+		_, err := db.Exec(dropSQL)
+		if err != nil {
+			return fmt.Errorf("failed to drop table: %w", err)
+		}
+	}
+
+	log.Println("All tables dropped successfully")
+	return nil
+}
+
 // Migrate runs database migrations
 func Migrate() error {
 	if db == nil {
 		return fmt.Errorf("database not initialized")
 	}
 
-	schema := `
+	log.Println("Running database migrations...")
 
+	schema := `
+-- Users Table
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(255) UNIQUE NOT NULL,
+    karma INTEGER NOT NULL DEFAULT 0 CHECK (karma >= 0),
+    about TEXT NOT NULL DEFAULT '',
+    created_at BIGINT NOT NULL,
+    submitted_ids INTEGER[] DEFAULT '{}'
+);
 -- Stories table
 CREATE TABLE IF NOT EXISTS stories (
     id INTEGER PRIMARY KEY,
@@ -165,7 +249,7 @@ CREATE TABLE IF NOT EXISTS stories (
     score INTEGER DEFAULT 0 CHECK (score >= 0),
     author VARCHAR(255) NOT NULL,
     created_at BIGINT NOT NULL,
-    comments_ids INTEGER[] DEFAULT '{}',
+    comments_ids INTEGER[] DEFAULT '{}',     -- IDs of comments associated with the story
     comments_count INTEGER DEFAULT 0 CHECK (comments_count >= 0)
 );
 
@@ -212,21 +296,22 @@ CREATE TABLE IF NOT EXISTS polls (
     title TEXT NOT NULL,
     score INTEGER DEFAULT 0 CHECK (score >= 0),
     author VARCHAR(255) NOT NULL,
-    poll_options TEXT[] DEFAULT '{}',
+    poll_options INTEGER[] DEFAULT '{}',
     reply_ids INTEGER[] DEFAULT '{}',
     created_at BIGINT NOT NULL
 );
 
 -- Poll Options table
 CREATE TABLE IF NOT EXISTS poll_options (
-    id INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY NOT NULL,
     type VARCHAR(10) DEFAULT 'PollOption' NOT NULL,
     poll_id INTEGER NOT NULL,
     author VARCHAR(255) NOT NULL,
     option_text TEXT NOT NULL,
     created_at BIGINT NOT NULL,
     votes INTEGER DEFAULT 0 CHECK (votes >= 0)
-);`
+);
+`
 
 	_, err := db.Exec(schema)
 	if err != nil {
@@ -234,6 +319,38 @@ CREATE TABLE IF NOT EXISTS poll_options (
 	}
 
 	log.Println("Database migrations completed successfully")
+	return nil
+}
+
+// FreshInit completely reinitializes the database
+func FreshInit(config *Config) error {
+	if config == nil {
+		config = GetDefaultConfig()
+	}
+
+	log.Println("Starting fresh database initialization...")
+
+	// Step 1: Drop and recreate database
+	if err := DropAndRecreateDatabase(config); err != nil {
+		return fmt.Errorf("failed to recreate database: %w", err)
+	}
+
+	// Step 2: Connect to new database
+	if err := Connect(config); err != nil {
+		return fmt.Errorf("failed to connect to new database: %w", err)
+	}
+
+	// Step 3: Run migrations
+	if err := Migrate(); err != nil {
+		return fmt.Errorf("failed to run migrations: %w", err)
+	}
+
+	// Step 4: Health check
+	if err := Health(); err != nil {
+		return fmt.Errorf("failed health check: %w", err)
+	}
+
+	log.Println("Fresh database initialization completed successfully!")
 	return nil
 }
 
