@@ -3,9 +3,11 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"internship-project/internal/models"
+
 	"internship-project/internal/repository"
 	"internship-project/pkg/database"
+
+	models "internship-project/internal/models"
 
 	"github.com/lib/pq"
 )
@@ -37,6 +39,42 @@ func (r *CommentRepository) Create(ctx context.Context, comment *models.Comment)
 	return err
 }
 
+// CreateBatch inserts multiple comments
+func (r *CommentRepository) CreateBatchWithExistingIDs(ctx context.Context, comments []*models.Comment) error {
+	if len(comments) == 0 {
+		return nil
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx,
+		`INSERT INTO comments (id, type, text, author, created_at, parent_id, reply_ids) 
+		 VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, comment := range comments {
+		replyIds := make(pq.Int64Array, len(comment.Replies))
+		for i, v := range comment.Replies {
+			replyIds[i] = int64(v)
+		}
+
+		if _, err := stmt.ExecContext(ctx,
+			comment.ID, comment.Type, comment.Text,
+			comment.Author, comment.Created_At, comment.Parent, replyIds); err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit()
+}
+
 // GetByID retrieves a comment by ID
 func (r *CommentRepository) GetByID(ctx context.Context, id int) (*models.Comment, error) {
 	comment := &models.Comment{}
@@ -47,7 +85,6 @@ func (r *CommentRepository) GetByID(ctx context.Context, id int) (*models.Commen
 		 FROM comments WHERE id = $1`, id).Scan(
 		&comment.ID, &comment.Type, &comment.Text,
 		&comment.Author, &comment.Created_At, &comment.Parent, &replyIds)
-
 	if err != nil {
 		return nil, err
 	}

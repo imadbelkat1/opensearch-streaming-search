@@ -3,7 +3,8 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"internship-project/internal/models"
+
+	models "internship-project/internal/models"
 	"internship-project/internal/repository"
 	"internship-project/pkg/database"
 
@@ -168,16 +169,20 @@ func (r *StoryRepository) CreateBatch(ctx context.Context, stories []*models.Sto
 	defer tx.Rollback()
 
 	stmt, err := tx.PrepareContext(ctx,
-		`INSERT INTO stories (id, type, title, url, score, author, created_at, comments_count) 
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`)
+		`INSERT INTO stories (id, type, title, url, score, author, created_at, comments_ids, comments_count) 
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO UPDATE`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
 	for _, story := range stories {
+		CommentsIds := make(pq.Int64Array, len(story.Comments_ids))
+		for i, v := range story.Comments_ids {
+			CommentsIds[i] = int64(v)
+		}
 		_, err := stmt.ExecContext(ctx, story.ID, story.Type, story.Title, story.URL,
-			story.Score, story.Author, story.Created_At, story.Comments_count)
+			story.Score, story.Author, story.Created_At, CommentsIds, story.Comments_count)
 		if err != nil {
 			return err
 		}
@@ -193,16 +198,20 @@ func (r *StoryRepository) CreateBatchWithExistingIDs(ctx context.Context, storie
 	defer tx.Rollback()
 
 	stmt, err := tx.PrepareContext(ctx,
-		`INSERT INTO stories (id, type, title, url, score, author, created_at, comments_count) 
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO NOTHING`)
+		`INSERT INTO stories (id, type, title, url, score, author, created_at, comments_ids, comments_count) 
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING`)
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 
 	for _, story := range stories {
+		CommentsIds := make(pq.Int64Array, len(story.Comments_ids))
+		for i, v := range story.Comments_ids {
+			CommentsIds[i] = int64(v)
+		}
 		_, err := stmt.ExecContext(ctx, story.ID, story.Type, story.Title, story.URL,
-			story.Score, story.Author, story.Created_At, story.Comments_count)
+			story.Score, story.Author, story.Created_At, CommentsIds, story.Comments_count)
 		if err != nil {
 			return err
 		}

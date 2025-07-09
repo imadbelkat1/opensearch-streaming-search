@@ -3,9 +3,11 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"internship-project/internal/models"
+
 	"internship-project/internal/repository"
 	"internship-project/pkg/database"
+
+	models "internship-project/internal/models"
 
 	"github.com/lib/pq"
 )
@@ -47,7 +49,6 @@ func (r *AskRepository) GetByID(ctx context.Context, id int) (*models.Ask, error
 		 FROM asks WHERE id = $1`, id).Scan(
 		&ask.ID, &ask.Type, &ask.Title, &ask.Text, &ask.Score,
 		&ask.Author, &replyIds, &ask.Replies_count, &ask.Created_At)
-
 	if err != nil {
 		return nil, err
 	}
@@ -174,6 +175,36 @@ func (r *AskRepository) CreateBatch(ctx context.Context, asks []*models.Ask) err
 			replyIds[i] = int64(v)
 		}
 
+		_, err := stmt.ExecContext(ctx, ask.ID, ask.Type, ask.Title, ask.Text,
+			ask.Score, ask.Author, replyIds, ask.Replies_count, ask.Created_At)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// CreateBatchWithExistingIDs creates multiple asks with existing IDs
+func (r *AskRepository) CreateBatchWithExistingIDs(ctx context.Context, asks []*models.Ask) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx,
+		`INSERT INTO asks (id, type, title, text, score, author, reply_ids, replies_count, created_at) 
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, ask := range asks {
+		replyIds := make(pq.Int64Array, len(ask.Reply_ids))
+		for i, v := range ask.Reply_ids {
+			replyIds[i] = int64(v)
+		}
 		_, err := stmt.ExecContext(ctx, ask.ID, ask.Type, ask.Title, ask.Text,
 			ask.Score, ask.Author, replyIds, ask.Replies_count, ask.Created_At)
 		if err != nil {

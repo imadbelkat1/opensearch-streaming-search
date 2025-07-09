@@ -2,7 +2,8 @@ package repository
 
 import (
 	"context"
-	"internship-project/internal/models"
+
+	models "internship-project/internal/models"
 )
 
 // Common interface methods used across all repositories
@@ -37,6 +38,7 @@ type UserRepository interface {
 
 	// Batch operations
 	CreateBatch(ctx context.Context, users []*models.User) error
+	CreateBatchWithExistingIDs(ctx context.Context, users []*models.User) error
 	UpdateKarmaBatch(ctx context.Context, karmaUpdates map[int]int) error
 
 	// Submission related operations
@@ -90,6 +92,7 @@ type CommentRepository interface {
 	GetByDateRange(ctx context.Context, start, end int64) ([]*models.Comment, error)
 
 	// Batch operations
+	CreateBatchWithExistingIDs(ctx context.Context, comments []*models.Comment) error
 	DeleteByAuthor(ctx context.Context, author string) error
 }
 
@@ -115,6 +118,7 @@ type AskRepository interface {
 
 	// Batch operations
 	CreateBatch(ctx context.Context, asks []*models.Ask) error
+	CreateBatchWithExistingIDs(ctx context.Context, asks []*models.Ask) error
 	DeleteByAuthor(ctx context.Context, author string) error
 }
 
@@ -139,6 +143,7 @@ type JobRepository interface {
 
 	// Batch operations
 	CreateBatch(ctx context.Context, jobs []*models.Job) error
+	CreateBatchWithExistingIDs(ctx context.Context, jobs []*models.Job) error
 	DeleteByAuthor(ctx context.Context, author string) error
 }
 
@@ -163,6 +168,7 @@ type PollRepository interface {
 
 	// Batch operations
 	CreateBatch(ctx context.Context, polls []*models.Poll) error
+	CreateBatchWithExistingIDs(ctx context.Context, polls []*models.Poll) error
 	DeleteByAuthor(ctx context.Context, author string) error
 }
 
@@ -190,6 +196,7 @@ type PollOptionRepository interface {
 
 	// Batch operations
 	CreateBatch(ctx context.Context, pollOptions []*models.PollOption) error
+	CreateBatchWithExistingIDs(ctx context.Context, pollOptions []*models.PollOption) error
 	DeleteByAuthor(ctx context.Context, author string) error
 	DeleteByPollID(ctx context.Context, pollID int) error
 }

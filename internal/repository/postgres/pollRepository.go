@@ -3,7 +3,8 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"internship-project/internal/models"
+
+	models "internship-project/internal/models"
 	"internship-project/internal/repository"
 	"internship-project/pkg/database"
 
@@ -53,7 +54,6 @@ func (r *PollRepository) GetByID(ctx context.Context, id int) (*models.Poll, err
 		 FROM polls WHERE id = $1`, id).Scan(
 		&poll.ID, &poll.Type, &poll.Title, &poll.Score,
 		&poll.Author, &pollOptions, &replyIds, &poll.Created_At)
-
 	if err != nil {
 		return nil, err
 	}
@@ -189,6 +189,41 @@ func (r *PollRepository) CreateBatch(ctx context.Context, polls []*models.Poll) 
 			replyIds[i] = int64(v)
 		}
 
+		_, err := stmt.ExecContext(ctx, poll.ID, poll.Type, poll.Title, poll.Score,
+			poll.Author, pollOptions, replyIds, poll.Created_At)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// CreateBatchWithExistingIDs creates multiple polls with existing IDs
+func (r *PollRepository) CreateBatchWithExistingIDs(ctx context.Context, polls []*models.Poll) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx,
+		`INSERT INTO polls (id, type, title, score, author, poll_options, reply_ids, created_at) 
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO NOTHING`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, poll := range polls {
+		pollOptions := make(pq.Int64Array, len(poll.PollOptions))
+		for i, v := range poll.PollOptions {
+			pollOptions[i] = int64(v)
+		}
+
+		replyIds := make(pq.Int64Array, len(poll.Reply_Ids))
+		for i, v := range poll.Reply_Ids {
+			replyIds[i] = int64(v)
+		}
 		_, err := stmt.ExecContext(ctx, poll.ID, poll.Type, poll.Title, poll.Score,
 			poll.Author, pollOptions, replyIds, poll.Created_At)
 		if err != nil {

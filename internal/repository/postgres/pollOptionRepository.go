@@ -4,7 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"internship-project/internal/models"
+
+	models "internship-project/internal/models"
 	"internship-project/internal/repository"
 	"internship-project/pkg/database"
 )
@@ -63,7 +64,6 @@ func (r *PollOptionRepository) Update(ctx context.Context, pollOption *models.Po
 		 created_at=$6, votes=$7 WHERE id=$1`,
 		pollOption.ID, pollOption.Type, pollOption.PollID, pollOption.Author,
 		pollOption.OptionText, pollOption.CreatedAt, pollOption.Votes)
-
 	if err != nil {
 		return err
 	}
@@ -221,6 +221,38 @@ func (r *PollOptionRepository) CreateBatch(ctx context.Context, pollOptions []*m
 		}
 	}
 
+	return tx.Commit()
+}
+
+// CreateBatchWithExistingIDs creates multiple poll options with existing IDs
+func (r *PollOptionRepository) CreateBatchWithExistingIDs(ctx context.Context, pollOptions []*models.PollOption) error {
+	if len(pollOptions) == 0 {
+		return nil
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	stmt, err := tx.PrepareContext(ctx,
+		`INSERT INTO poll_options (id, type, poll_id, author, option_text, created_at, votes)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING`)
+	if err != nil {
+		return err
+	}
+
+	defer stmt.Close()
+	for _, pollOption := range pollOptions {
+		if !pollOption.IsValid() {
+			return fmt.Errorf("invalid poll option data in batch")
+		}
+		_, err := stmt.ExecContext(ctx,
+			pollOption.ID, pollOption.Type, pollOption.PollID, pollOption.Author,
+			pollOption.OptionText, pollOption.CreatedAt, pollOption.Votes)
+		if err != nil {
+			return err
+		}
+	}
 	return tx.Commit()
 }
 

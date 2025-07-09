@@ -62,7 +62,6 @@ func TestCreateStory(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to delete created story: %v", err)
 	}
-
 }
 
 func TestGetStoryByID(t *testing.T) {
@@ -188,7 +187,6 @@ func TestGetByMinScore(t *testing.T) {
 			t.Logf("Story ID: %d, Title: %s, Score: %d", story.ID, story.Title, story.Score)
 		}
 	}
-
 }
 
 func TestGetByAuthor(t *testing.T) {
@@ -531,6 +529,7 @@ func TestDeleteByAuthor(t *testing.T) {
 		t.Logf("Story ID %d deleted successfully after delete by author test", story.ID)
 	}
 }
+
 func TestGetCount(t *testing.T) {
 	setupTest(t)
 	defer teardownTest()
@@ -622,20 +621,5 @@ func TestCreateBatchStoriesWithExistingIDs(t *testing.T) {
 		} else {
 			t.Logf("Batch story ID %d created successfully", s.ID)
 		}
-	}
-
-	// Clean up
-	err = repo.Delete(ctx, existingStory.ID)
-	if err != nil {
-		t.Errorf("Failed to delete existing story after batch test: %v", err)
-	} else {
-		t.Logf("Existing story ID %d deleted successfully after batch test", existingStory.ID)
-	}
-	// Clean up new story
-	err = repo.Delete(ctx, 1020) // Delete the new story created in the batch
-	if err != nil {
-		t.Errorf("Failed to delete new story after batch test: %v", err)
-	} else {
-		t.Logf("New story ID %d deleted successfully after batch test", existingStory.ID)
 	}
 }

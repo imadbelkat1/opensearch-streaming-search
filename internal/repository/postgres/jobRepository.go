@@ -3,7 +3,8 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"internship-project/internal/models"
+
+	models "internship-project/internal/models"
 	"internship-project/internal/repository"
 	"internship-project/pkg/database"
 )
@@ -137,6 +138,32 @@ func (r *JobRepository) CreateBatch(ctx context.Context, jobs []*models.Job) err
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO jobs (id, type, title, text, url, score, author, created_at) 
 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+
+	for _, job := range jobs {
+		_, err := stmt.ExecContext(ctx, job.ID, job.Type, job.Title, job.Text,
+			job.URL, job.Score, job.Author, job.Created_At)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// CreateBatchWithExistingIDs creates multiple jobs with existing IDs
+func (r *JobRepository) CreateBatchWithExistingIDs(ctx context.Context, jobs []*models.Job) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	stmt, err := tx.PrepareContext(ctx,
+		`INSERT INTO jobs (id, type, title, text, url, score, author, created_at) 
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO NOTHING`)
 	if err != nil {
 		return err
 	}

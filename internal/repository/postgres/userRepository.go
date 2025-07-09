@@ -3,7 +3,8 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"internship-project/internal/models"
+
+	models "internship-project/internal/models"
 	"internship-project/internal/repository"
 	"internship-project/pkg/database"
 
@@ -211,6 +212,33 @@ func (r *UserRepository) CreateBatch(ctx context.Context, users []*models.User) 
 			submittedIds[i] = int64(v)
 		}
 
+		_, err := stmt.ExecContext(ctx, user.Username, user.Karma, user.About, user.Created_At, submittedIds)
+		if err != nil {
+			return err
+		}
+	}
+	return tx.Commit()
+}
+
+// CreateBatchWithExistingIDs creates multiple users with existing usernames
+func (r *UserRepository) CreateBatchWithExistingIDs(ctx context.Context, users []*models.User) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	stmt, err := tx.PrepareContext(ctx,
+		`INSERT INTO users (username, karma, about, created_at, submitted_ids)
+		 VALUES ($1, $2, $3, $4, $5) ON CONFLICT (username) DO NOTHING`)
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	for _, user := range users {
+		submittedIds := make(pq.Int64Array, len(user.Submitted))
+		for i, v := range user.Submitted {
+			submittedIds[i] = int64(v)
+		}
 		_, err := stmt.ExecContext(ctx, user.Username, user.Karma, user.About, user.Created_At, submittedIds)
 		if err != nil {
 			return err
