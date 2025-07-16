@@ -62,3 +62,13 @@ func (c *HackerNewsApiClient) GetItemList(ctx context.Context, endpoint string) 
 	err := c.Get(ctx, endpoint, &ids)
 	return ids, err
 }
+
+// GetMaxItemID retrieves the maximum item ID from the API
+func (c *HackerNewsApiClient) GetMaxItemID() (int, error) {
+	var maxItem int
+	err := c.Get(context.Background(), "/maxitem.json", &maxItem)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get max item ID: %w", err)
+	}
+	return maxItem, nil
+}

@@ -6,3 +6,26 @@ database:
   dbname: hackernews # Name of your database
   sslmode: disable # For local development
 
+kafka:
+  bootstrap_servers: ["localhost:9092"] # Kafka bootstrap servers
+  client_id: "hackernews_client" # Client ID for Kafka
+  acks: "all" # Acknowledgment level for message delivery
+  topics:
+    stories: "stories" # Kafka topic for stories
+    asks: "asks" # Kafka topic for asks
+    comments: "comments" # Kafka topic for comments
+    jobs: "jobs" # Kafka topic for jobs
+    polls: "polls" # Kafka topic for polls
+    poll_options: "poll_options" # Kafka topic for poll options
+    users: "users" # Kafka topic for users
+  consumer_group:
+    stories: "stories_group" # Consumer group for stories
+    asks: "asks_group" # Consumer group for asks
+    comments: "comments_group" # Consumer group for comments
+    jobs: "jobs_group" # Consumer group for jobs
+    polls: "polls_group" # Consumer group for polls
+    poll_options: "poll_options_group" # Consumer group for poll options
+    users: "users_group" # Consumer group for users
+  auto_offset_reset: "earliest" # Start consuming from the earliest message
+  enable_auto_commit: true # Automatically commit offsets
+  session_timeout_ms: 30000 # Session timeout for consumers

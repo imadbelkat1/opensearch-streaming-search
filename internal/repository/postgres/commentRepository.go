@@ -53,7 +53,9 @@ func (r *CommentRepository) CreateBatchWithExistingIDs(ctx context.Context, comm
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO comments (id, type, text, author, created_at, parent_id, reply_ids) 
-		 VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING`)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO UPDATE SET
+		 type = EXCLUDED.type, text = EXCLUDED.text, author = EXCLUDED.author, created_at = EXCLUDED.created_at, 
+		 parent_id = EXCLUDED.parent_id, reply_ids = EXCLUDED.reply_ids`)
 	if err != nil {
 		return err
 	}

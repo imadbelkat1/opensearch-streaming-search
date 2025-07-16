@@ -199,7 +199,10 @@ func (r *StoryRepository) CreateBatchWithExistingIDs(ctx context.Context, storie
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO stories (id, type, title, url, score, author, created_at, comments_ids, comments_count) 
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING`)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO UPDATE SET
+		 type = EXCLUDED.type, title = EXCLUDED.title, url = EXCLUDED.url,
+		 score = EXCLUDED.score, author = EXCLUDED.author, created_at = EXCLUDED.created_at,
+		 comments_ids = EXCLUDED.comments_ids, comments_count = EXCLUDED.comments_count`)
 	if err != nil {
 		return err
 	}

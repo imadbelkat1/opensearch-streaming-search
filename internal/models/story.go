@@ -16,5 +16,5 @@ type Story struct {
 }
 
 func (s *Story) IsValid() bool {
-	return s.ID > 0 && s.Type == "Story" && s.Title != "" && s.Author != "" && s.Created_At > 0
+	return s.ID > 0 && s.Type == "story" && s.Title != "" && s.Author != "" && s.Created_At > 0
 }

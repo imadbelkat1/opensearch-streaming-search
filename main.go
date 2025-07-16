@@ -28,6 +28,7 @@ func main() {
 
 	// Create and start data sync service
 	dataSyncService, err := cronjob.NewDataSyncService(
+		client,
 		userService,
 		storyService,
 		commentService,

@@ -236,7 +236,9 @@ func (r *PollOptionRepository) CreateBatchWithExistingIDs(ctx context.Context, p
 	defer tx.Rollback()
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO poll_options (id, type, poll_id, author, option_text, created_at, votes)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO NOTHING`)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7) ON CONFLICT (id) DO UPDATE SET
+		 type = EXCLUDED.type, poll_id = EXCLUDED.poll_id, author = EXCLUDED.author,
+		 option_text = EXCLUDED.option_text, created_at = EXCLUDED.created_at, votes = EXCLUDED.votes`)
 	if err != nil {
 		return err
 	}

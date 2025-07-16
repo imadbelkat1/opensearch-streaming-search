@@ -17,7 +17,7 @@ func NewUpdateApiService(client *HackerNewsApiClient) *UpdateApiService {
 
 func (s *UpdateApiService) FetchUpdates(ctx context.Context) (models.Update, error) {
 	var update models.Update
-	err := s.Client.Get(ctx, "/updates.json", update)
+	err := s.Client.Get(ctx, "/updates.json", &update)
 	if err != nil {
 		log.Printf("Error fetching updates: %v", err)
 		return models.Update{}, err

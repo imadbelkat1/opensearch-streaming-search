@@ -14,5 +14,5 @@ type Job struct {
 }
 
 func (j *Job) IsValid() bool {
-	return j.ID > 0 && j.Type == "Job" && j.Title != "" && j.Author != "" && j.Created_At > 0
+	return j.ID > 0 && j.Type == "job" && j.Title != "" && j.Author != "" && j.Created_At > 0
 }

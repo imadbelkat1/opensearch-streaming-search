@@ -208,7 +208,9 @@ func (r *PollRepository) CreateBatchWithExistingIDs(ctx context.Context, polls [
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO polls (id, type, title, score, author, poll_options, reply_ids, created_at) 
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO NOTHING`)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO UPDATE SET
+		 type = EXCLUDED.type, title = EXCLUDED.title, score = EXCLUDED.score, author = EXCLUDED.author,
+		 poll_options = EXCLUDED.poll_options, reply_ids = EXCLUDED.reply_ids, created_at = EXCLUDED.created_at`)
 	if err != nil {
 		return err
 	}

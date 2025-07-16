@@ -194,7 +194,9 @@ func (r *AskRepository) CreateBatchWithExistingIDs(ctx context.Context, asks []*
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO asks (id, type, title, text, score, author, reply_ids, replies_count, created_at) 
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO NOTHING`)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) ON CONFLICT (id) DO UPDATE SET
+		 type = EXCLUDED.type, title = EXCLUDED.title, text = EXCLUDED.text, score = EXCLUDED.score, author = EXCLUDED.author,
+		 reply_ids = EXCLUDED.reply_ids, replies_count = EXCLUDED.replies_count, created_at = EXCLUDED.created_at`)
 	if err != nil {
 		return err
 	}

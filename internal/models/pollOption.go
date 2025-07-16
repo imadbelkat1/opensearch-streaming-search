@@ -11,5 +11,5 @@ type PollOption struct {
 }
 
 func (po *PollOption) IsValid() bool {
-	return po.ID > 0 && po.Type == "PollOption" && po.PollID > 0 && po.OptionText != "" && po.CreatedAt > 0
+	return po.ID > 0 && po.Type == "pollOption" && po.PollID > 0 && po.OptionText != "" && po.CreatedAt > 0
 }

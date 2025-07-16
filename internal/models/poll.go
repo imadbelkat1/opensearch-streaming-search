@@ -13,5 +13,5 @@ type Poll struct {
 }
 
 func (p *Poll) IsValid() bool {
-	return p.ID > 0 && p.Type == "Poll" && p.Title != "" && p.Author != "" && p.Created_At > 0
+	return p.ID > 0 && p.Type == "poll" && p.Title != "" && p.Author != "" && p.Created_At > 0
 }

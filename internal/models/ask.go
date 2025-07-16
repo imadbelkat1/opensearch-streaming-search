@@ -15,5 +15,5 @@ type Ask struct {
 }
 
 func (a *Ask) IsValid() bool {
-	return a.ID > 0 && a.Type == "Ask" && a.Title != "" && a.Author != "" && a.Created_At > 0
+	return a.ID > 0 && a.Type == "ask" && a.Title != "" && a.Author != "" && a.Created_At > 0
 }

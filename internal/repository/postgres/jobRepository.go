@@ -163,7 +163,9 @@ func (r *JobRepository) CreateBatchWithExistingIDs(ctx context.Context, jobs []*
 
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO jobs (id, type, title, text, url, score, author, created_at) 
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO NOTHING`)
+		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type,
+		 title = EXCLUDED.title, text = EXCLUDED.text, url = EXCLUDED.url,	score = EXCLUDED.score,
+		 author = EXCLUDED.author, created_at = EXCLUDED.created_at`)
 	if err != nil {
 		return err
 	}

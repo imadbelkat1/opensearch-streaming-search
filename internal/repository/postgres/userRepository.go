@@ -229,7 +229,8 @@ func (r *UserRepository) CreateBatchWithExistingIDs(ctx context.Context, users [
 	defer tx.Rollback()
 	stmt, err := tx.PrepareContext(ctx,
 		`INSERT INTO users (username, karma, about, created_at, submitted_ids)
-		 VALUES ($1, $2, $3, $4, $5) ON CONFLICT (username) DO NOTHING`)
+			VALUES ($1, $2, $3, $4, $5) ON CONFLICT (username) DO UPDATE SET karma = EXCLUDED.karma, about = EXCLUDED.about, 
+				created_at = EXCLUDED.created_at,submitted_ids = EXCLUDED.submitted_ids; `)
 	if err != nil {
 		return err
 	}

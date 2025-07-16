@@ -12,5 +12,5 @@ type Comment struct {
 }
 
 func (c *Comment) IsValid() bool {
-	return c.ID > 0 && c.Type == "Comment" && c.Text != "" && c.Author != "" && c.Created_At > 0
+	return c.ID > 0 && c.Type == "comment" && c.Text != "" && c.Author != "" && c.Created_At > 0
 }
