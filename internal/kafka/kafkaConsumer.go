@@ -2,7 +2,6 @@ package kafka
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"time"
 
@@ -21,13 +20,27 @@ func NewConsumer(topic string) error {
 	conn.SetReadDeadline(time.Now().Add(10 * time.Second))
 	batch := conn.ReadBatch(10e3, 1e6) // fetch 10KB min, 1MB max
 
+	log.Printf("Kafka consumer started for topic: %s", topic)
+
 	b := make([]byte, 10e3) // 10KB max per message
+
+	// Try to read the first message to check if there are any messages
+	n, err := batch.Read(b)
+	if err != nil {
+		log.Printf("No messages to consume from topic: %s", topic)
+		return nil
+	}
+	// If there is at least one message, process it and continue reading
+	message := string(b[:n])
+	log.Printf("Received message: %s", message)
+
 	for {
 		n, err := batch.Read(b)
 		if err != nil {
 			break
 		}
-		fmt.Println(string(b[:n]))
+		message := string(b[:n])
+		log.Printf("Received message: %s", message)
 	}
 
 	if err := batch.Close(); err != nil {
@@ -38,6 +51,6 @@ func NewConsumer(topic string) error {
 		log.Fatal("failed to close connection:", err)
 	}
 
-	log.Println("Kafka consumer initialized successfully")
+	log.Printf("Kafka consumer finished reading messages from topic: %s", topic)
 	return nil
 }

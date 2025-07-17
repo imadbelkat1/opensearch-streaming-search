@@ -9,6 +9,7 @@ import (
 
 	"internship-project/internal/kafka"
 	"internship-project/internal/models"
+	"internship-project/internal/redis"
 	"internship-project/internal/repository/postgres"
 	"internship-project/internal/services"
 	"internship-project/pkg/database"
@@ -127,7 +128,7 @@ func (d *DataSyncService) registerJobs() error {
 		},
 		{
 			name:      "sync-updates",
-			interval:  1 * time.Minute,
+			interval:  10 * time.Second,
 			task:      func() { d.syncUpdates() },
 			immediate: true,
 		},
@@ -304,6 +305,7 @@ func (d *DataSyncService) syncUpdates() {
 	log.Println("Starting update sync...")
 
 	ctx := context.Background()
+
 	update, err := d.updateService.FetchUpdates(ctx)
 	if err != nil {
 		log.Printf("Error fetching updates: %v", err)
@@ -315,8 +317,6 @@ func (d *DataSyncService) syncUpdates() {
 		return
 	}
 
-	log.Printf("Processing %d items from updates", len(update.IDs))
-
 	// Initialize repositories
 	storyRepo := postgres.NewStoryRepository()
 	askRepo := postgres.NewAskRepository()
@@ -326,7 +326,7 @@ func (d *DataSyncService) syncUpdates() {
 	pollOptionRepo := postgres.NewPollOptionRepository()
 	userRepo := postgres.NewUserRepository()
 
-	// Collections for batch operations
+	var mu sync.Mutex
 	var stories []models.Story
 	var asks []models.Ask
 	var comments []models.Comment
@@ -335,248 +335,322 @@ func (d *DataSyncService) syncUpdates() {
 	var pollOptions []models.PollOption
 	var users []models.User
 
-	// Collection of IDs for batch kafka producer
 	var storiesIDs []int
 	var asksIDs []int
 	var commentsIDs []int
 	var jobsIDs []int
 	var pollsIDs []int
 	var pollOptionsIDs []int
+	var userIDs []string
 
-	// Process each item
+	var IDsExistsCount []int
+	var UserExistsCount []string
+
+	itemsRedisKey := "ids"
+	userRedisKey := "user_ids"
+
+	var wg sync.WaitGroup
 	for _, itemID := range update.IDs {
-		// Fetch raw item to determine type
-		var rawItem map[string]interface{}
-		err := d.apiClient.GetItem(ctx, itemID, &rawItem)
-		if err != nil {
-			log.Printf("Error fetching item %d: %v", itemID, err)
-			continue
-		}
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
 
-		// Get item type
-		itemType, ok := rawItem["type"].(string)
-		if !ok {
-			log.Printf("Item %d has no valid type", itemID)
-			continue
-		}
-
-		log.Printf("Processing item %d of type: %s", itemID, itemType)
-
-		// Route based on type
-		switch itemType {
-		case "story":
-			var story models.Story
-			err := d.apiClient.GetItem(ctx, itemID, &story)
+			// Skip if itemID exists in redis cache
+			exists, err := redis.IsItemInCache(ctx, itemsRedisKey, itemID)
 			if err != nil {
-				log.Printf("Error fetching story %d: %v", itemID, err)
-				continue
-			}
-			if story.IsValid() {
-				stories = append(stories, story)
-				storiesIDs = append(storiesIDs, story.ID)
+				log.Printf("Error checking cache for item %d: %v", id, err)
+				return
 			}
 
-		case "ask":
-			var ask models.Ask
-			err := d.apiClient.GetItem(ctx, itemID, &ask)
+			if exists {
+				IDsExistsCount = append(IDsExistsCount, itemID)
+				return
+			}
+
+			// Fetch raw item to determine type
+			var rawItem map[string]interface{}
+			err = d.apiClient.GetItem(ctx, id, &rawItem)
 			if err != nil {
-				log.Printf("Error fetching ask %d: %v", itemID, err)
-				continue
-			}
-			if ask.IsValid() {
-				asks = append(asks, ask)
-				asksIDs = append(asksIDs, ask.ID)
+				log.Printf("Error fetching item %d: %v", id, err)
+				return
 			}
 
-		case "comment":
-			var comment models.Comment
-			err := d.apiClient.GetItem(ctx, itemID, &comment)
-			if err != nil {
-				log.Printf("Error fetching comment %d: %v", itemID, err)
-				continue
-			}
-			if comment.IsValid() {
-				comments = append(comments, comment)
-				commentsIDs = append(commentsIDs, comment.ID)
-
+			itemType, ok := rawItem["type"].(string)
+			if !ok {
+				log.Printf("Item %d has no valid type", id)
+				return
 			}
 
-		case "job":
-			var job models.Job
-			err := d.apiClient.GetItem(ctx, itemID, &job)
-			if err != nil {
-				log.Printf("Error fetching job %d: %v", itemID, err)
-				continue
-			}
-			if job.IsValid() {
-				jobs = append(jobs, job)
-				jobsIDs = append(jobsIDs, job.ID)
-			}
+			log.Printf("Processing item %d of type: %s", id, itemType)
 
-		case "poll":
-			var poll models.Poll
-			err := d.apiClient.GetItem(ctx, itemID, &poll)
-			if err != nil {
-				log.Printf("Error fetching poll %d: %v", itemID, err)
-				continue
-			}
-			if poll.IsValid() {
-				polls = append(polls, poll)
-				pollsIDs = append(pollsIDs, poll.ID)
-			}
+			// Process based on type
+			switch itemType {
+			case "story":
+				var story models.Story
+				if err := d.apiClient.GetItem(ctx, id, &story); err == nil && story.IsValid() {
+					mu.Lock()
+					stories = append(stories, story)
+					storiesIDs = append(storiesIDs, story.ID)
+					mu.Unlock()
+				}
 
-		case "pollopt":
-			var pollOption models.PollOption
-			err := d.apiClient.GetItem(ctx, itemID, &pollOption)
-			if err != nil {
-				log.Printf("Error fetching poll option %d: %v", itemID, err)
-				continue
-			}
-			if pollOption.IsValid() {
-				pollOptions = append(pollOptions, pollOption)
-				pollOptionsIDs = append(pollOptionsIDs, pollOption.ID)
-			}
+			case "ask":
+				var ask models.Ask
+				if err := d.apiClient.GetItem(ctx, id, &ask); err == nil && ask.IsValid() {
+					mu.Lock()
+					asks = append(asks, ask)
+					asksIDs = append(asksIDs, ask.ID)
+					mu.Unlock()
+				}
 
-		default:
-			log.Printf("Unknown item type '%s' for item %d", itemType, itemID)
-		}
+			case "comment":
+				var comment models.Comment
+				if err := d.apiClient.GetItem(ctx, id, &comment); err == nil && comment.IsValid() {
+					mu.Lock()
+					comments = append(comments, comment)
+					commentsIDs = append(commentsIDs, comment.ID)
+					mu.Unlock()
+				}
+
+			case "job":
+				var job models.Job
+				if err := d.apiClient.GetItem(ctx, id, &job); err == nil && job.IsValid() {
+					mu.Lock()
+					jobs = append(jobs, job)
+					jobsIDs = append(jobsIDs, job.ID)
+					mu.Unlock()
+				}
+
+			case "poll":
+				var poll models.Poll
+				if err := d.apiClient.GetItem(ctx, id, &poll); err == nil && poll.IsValid() {
+					mu.Lock()
+					polls = append(polls, poll)
+					pollsIDs = append(pollsIDs, poll.ID)
+					mu.Unlock()
+				}
+
+			case "pollopt":
+				var pollOption models.PollOption
+				if err := d.apiClient.GetItem(ctx, id, &pollOption); err == nil && pollOption.IsValid() {
+					mu.Lock()
+					pollOptions = append(pollOptions, pollOption)
+					pollOptionsIDs = append(pollOptionsIDs, pollOption.ID)
+					mu.Unlock()
+				}
+			}
+		}(itemID)
 	}
 
-	// Fetch users for all items
 	for _, userID := range update.Profiles {
-		var user models.User
-		err := d.apiClient.Get(ctx, fmt.Sprintf("/user/%s.json", userID), &user)
-		if err != nil {
-			log.Printf("Error fetching user %s: %v", userID, err)
-			continue
-		}
+		wg.Add(1)
+		go func(id string) {
+			defer wg.Done()
 
-		log.Printf("Processing user %s", userID)
+			exists, err := redis.IsUserIDInCache(ctx, userRedisKey, id)
+			if err != nil {
+				log.Printf("Error checking cache for user %s: %v", id, err)
+				return
+			}
 
-		if user.IsValid() {
-			users = append(users, user)
-		}
+			if exists {
+				UserExistsCount = append(UserExistsCount, id)
+				return
+			}
+
+			var user models.User
+			err = d.apiClient.Get(ctx, fmt.Sprintf("/user/%s.json", id), &user)
+			if err != nil {
+				log.Printf("Error fetching user %s: %v", id, err)
+				return
+			}
+
+			if user.IsValid() {
+				mu.Lock()
+				users = append(users, user)
+				userIDs = append(userIDs, user.Username)
+				mu.Unlock()
+			}
+		}(userID)
 	}
 
-	// Batch save to database
+	log.Printf("%d Items already Exists", len(IDsExistsCount))
+	log.Printf("%d Users already Exists", len(UserExistsCount))
+
+	wg.Wait()
+
+	// Save to database concurrently
+	var saveWg sync.WaitGroup
+
+	// Save stories
 	if len(stories) > 0 {
-		storyPtrs := make([]*models.Story, len(stories))
-		for i := range stories {
-			storyPtrs[i] = &stories[i]
-		}
-		err = storyRepo.CreateBatchWithExistingIDs(ctx, storyPtrs)
-		if err != nil {
-			log.Printf("Error saving stories: %v", err)
-		} else {
-			err := kafka.NewProducer("StoriesTopic", storiesIDs)
-			if err != nil {
-				log.Printf("Error sending stories to Kafka: %v", err)
-			} else {
-				log.Printf("Sent %d stories to Kafka", len(stories))
+		saveWg.Add(1)
+		go func() {
+			defer saveWg.Done()
+			storyPtrs := make([]*models.Story, len(stories))
+			for i := range stories {
+				storyPtrs[i] = &stories[i]
 			}
-		}
+			err = storyRepo.CreateBatchWithExistingIDs(ctx, storyPtrs)
+			if err != nil {
+				log.Printf("Error saving stories: %v", err)
+			} else {
+				if err := kafka.NewItemProducer("StoriesTopic", storiesIDs); err != nil {
+					log.Printf("Error sending stories to Kafka: %v", err)
+				} else {
+					log.Printf("Sent %d stories to Kafka", len(stories))
+					redis.CacheID(ctx, itemsRedisKey, storiesIDs)
+					log.Printf("---------------Cached %d stories to Redis---------------", len(stories))
+				}
+			}
+		}()
 	}
 
+	// Save asks
 	if len(asks) > 0 {
-		askPtrs := make([]*models.Ask, len(asks))
-		for i := range asks {
-			askPtrs[i] = &asks[i]
-		}
-		err = askRepo.CreateBatchWithExistingIDs(ctx, askPtrs)
-		if err != nil {
-			log.Printf("Error saving asks: %v", err)
-		} else {
-			err := kafka.NewProducer("AsksTopic", asksIDs)
-			if err != nil {
-				log.Printf("Error sending asks to Kafka: %v", err)
-			} else {
-				log.Printf("Sent %d asks to Kafka", len(asks))
+		saveWg.Add(1)
+		go func() {
+			defer saveWg.Done()
+			askPtrs := make([]*models.Ask, len(asks))
+			for i := range asks {
+				askPtrs[i] = &asks[i]
 			}
-		}
+			err = askRepo.CreateBatchWithExistingIDs(ctx, askPtrs)
+			if err != nil {
+				log.Printf("Error saving asks: %v", err)
+			} else {
+				if err := kafka.NewItemProducer("AsksTopic", asksIDs); err != nil {
+					log.Printf("Error sending asks to Kafka: %v", err)
+				} else {
+					log.Printf("Sent %d asks to Kafka", len(asks))
+					redis.CacheID(ctx, itemsRedisKey, asksIDs)
+					log.Printf("---------------Cached %d asks to Redis---------------", len(asks))
+				}
+			}
+		}()
 	}
 
+	// Save comments
 	if len(comments) > 0 {
-		commentPtrs := make([]*models.Comment, len(comments))
-		for i := range comments {
-			commentPtrs[i] = &comments[i]
-		}
-		err = commentRepo.CreateBatchWithExistingIDs(ctx, commentPtrs)
-		if err != nil {
-			log.Printf("Error saving comments: %v", err)
-		} else {
-			err := kafka.NewProducer("CommentsTopic", commentsIDs)
-			if err != nil {
-				log.Printf("Error sending comments to Kafka: %v", err)
-			} else {
-				log.Printf("Sent %d comments to Kafka", len(comments))
+		saveWg.Add(1)
+		go func() {
+			defer saveWg.Done()
+			commentPtrs := make([]*models.Comment, len(comments))
+			for i := range comments {
+				commentPtrs[i] = &comments[i]
 			}
-		}
+			err = commentRepo.CreateBatchWithExistingIDs(ctx, commentPtrs)
+			if err != nil {
+				log.Printf("Error saving comments: %v", err)
+			} else {
+				if err := kafka.NewItemProducer("CommentsTopic", commentsIDs); err != nil {
+					log.Printf("Error sending comments to Kafka: %v", err)
+				} else {
+					log.Printf("Sent %d comments to Kafka", len(comments))
+					redis.CacheID(ctx, itemsRedisKey, commentsIDs)
+					log.Printf("---------------Cached %d comments to Redis---------------", len(comments))
+				}
+			}
+		}()
 	}
 
+	// Save jobs
 	if len(jobs) > 0 {
-		jobPtrs := make([]*models.Job, len(jobs))
-		for i := range jobs {
-			jobPtrs[i] = &jobs[i]
-		}
-		err = jobRepo.CreateBatchWithExistingIDs(ctx, jobPtrs)
-		if err != nil {
-			log.Printf("Error saving jobs: %v", err)
-		} else {
-			err := kafka.NewProducer("JobsTopic", jobsIDs)
-			if err != nil {
-				log.Printf("Error sending jobs to Kafka: %v", err)
-			} else {
-				log.Printf("Sent %d jobs to Kafka", len(jobs))
+		saveWg.Add(1)
+		go func() {
+			defer saveWg.Done()
+			jobPtrs := make([]*models.Job, len(jobs))
+			for i := range jobs {
+				jobPtrs[i] = &jobs[i]
 			}
-		}
+			err = jobRepo.CreateBatchWithExistingIDs(ctx, jobPtrs)
+			if err != nil {
+				log.Printf("Error saving jobs: %v", err)
+			} else {
+				if err := kafka.NewItemProducer("JobsTopic", jobsIDs); err != nil {
+					log.Printf("Error sending jobs to Kafka: %v", err)
+				} else {
+					log.Printf("Sent %d jobs to Kafka", len(jobs))
+					redis.CacheID(ctx, itemsRedisKey, jobsIDs)
+					log.Printf("---------------Cached %d jobs to Redis---------------", len(jobs))
+				}
+			}
+		}()
 	}
 
+	// Save polls
 	if len(polls) > 0 {
-		pollPtrs := make([]*models.Poll, len(polls))
-		for i := range polls {
-			pollPtrs[i] = &polls[i]
-		}
-		err = pollRepo.CreateBatchWithExistingIDs(ctx, pollPtrs)
-		if err != nil {
-			log.Printf("Error saving polls: %v", err)
-		} else {
-			err := kafka.NewProducer("PollsTopic", pollsIDs)
-			if err != nil {
-				log.Printf("Error sending polls to Kafka: %v", err)
-			} else {
-				log.Printf("Sent %d polls to Kafka", len(polls))
+		saveWg.Add(1)
+		go func() {
+			defer saveWg.Done()
+			pollPtrs := make([]*models.Poll, len(polls))
+			for i := range polls {
+				pollPtrs[i] = &polls[i]
 			}
-		}
+			err = pollRepo.CreateBatchWithExistingIDs(ctx, pollPtrs)
+			if err != nil {
+				log.Printf("Error saving polls: %v", err)
+			} else {
+				if err := kafka.NewItemProducer("PollsTopic", pollsIDs); err != nil {
+					log.Printf("Error sending polls to Kafka: %v", err)
+				} else {
+					log.Printf("Sent %d polls to Kafka", len(polls))
+					redis.CacheID(ctx, itemsRedisKey, pollsIDs)
+					log.Printf("---------------Cached %d polls to Redis---------------", len(polls))
+				}
+			}
+		}()
 	}
 
+	// Save poll options
 	if len(pollOptions) > 0 {
-		pollOptionPtrs := make([]*models.PollOption, len(pollOptions))
-		for i := range pollOptions {
-			pollOptionPtrs[i] = &pollOptions[i]
-		}
-		err = pollOptionRepo.CreateBatchWithExistingIDs(ctx, pollOptionPtrs)
-		if err != nil {
-			log.Printf("Error saving poll options: %v", err)
-		} else {
-			err := kafka.NewProducer("PollOptionsTopic", pollOptionsIDs)
-			if err != nil {
-				log.Printf("Error sending poll options to Kafka: %v", err)
-			} else {
-				log.Printf("Sent %d poll options to Kafka", len(pollOptions))
+		saveWg.Add(1)
+		go func() {
+			defer saveWg.Done()
+			pollOptionPtrs := make([]*models.PollOption, len(pollOptions))
+			for i := range pollOptions {
+				pollOptionPtrs[i] = &pollOptions[i]
 			}
-		}
+			err = pollOptionRepo.CreateBatchWithExistingIDs(ctx, pollOptionPtrs)
+			if err != nil {
+				log.Printf("Error saving poll options: %v", err)
+			} else {
+				if err := kafka.NewItemProducer("PollOptionsTopic", pollOptionsIDs); err != nil {
+					log.Printf("Error sending poll options to Kafka: %v", err)
+				} else {
+					log.Printf("Sent %d poll options to Kafka", len(pollOptions))
+					redis.CacheID(ctx, itemsRedisKey, pollOptionsIDs)
+					log.Printf("---------------Cached %d poll options to Redis---------------", len(pollOptions))
+				}
+			}
+		}()
 	}
 
+	// Save users
 	if len(users) > 0 {
-		userPtrs := make([]*models.User, len(users))
-		for i := range users {
-			userPtrs[i] = &users[i]
-		}
-		err = userRepo.CreateBatchWithExistingIDs(ctx, userPtrs)
-		if err != nil {
-			log.Printf("Error saving users: %v", err)
-		}
+		saveWg.Add(1)
+		go func() {
+			defer saveWg.Done()
+			userPtrs := make([]*models.User, len(users))
+			for i := range users {
+				userPtrs[i] = &users[i]
+			}
+			err = userRepo.CreateBatchWithExistingIDs(ctx, userPtrs)
+			if err != nil {
+				log.Printf("Error saving users: %v", err)
+			} else {
+				if err := kafka.NewUserIDProducer("UsersTopic", userIDs); err != nil {
+					log.Printf("Error sending users to Kafka: %v", err)
+				} else {
+					log.Printf("Sent %d users to Kafka", len(users))
+					redis.CacheUserIDs(ctx, userRedisKey, userIDs)
+					log.Printf("---------------Cached %d users to Redis---------------", len(users))
+				}
+			}
+		}()
 	}
+
+	saveWg.Wait()
 
 	log.Printf("Update sync completed - Stories: %d, Asks: %d, Comments: %d, Jobs: %d, Polls: %d, Poll Options: %d, Users: %d",
 		len(stories), len(asks), len(comments), len(jobs), len(polls), len(pollOptions), len(users))

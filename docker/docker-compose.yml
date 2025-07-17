@@ -13,10 +13,11 @@ services:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_logs:/var/lib/zookeeper/log
     healthcheck:
-      test: ["CMD-SHELL", "echo ruok | nc localhost 2181 | grep imok"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD-SHELL", "echo srvr | nc localhost 2181 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
 
   # OpenSearch Cluster
   opensearch-node1:
@@ -104,9 +105,14 @@ services:
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       KAFKA_LOG_DIRS: '/tmp/kraft-combined-logs'
       CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+
+      KAFKA_LOG_RETENTION_MS: 60000  # 1 minute in milliseconds
+      KAFKA_LOG_SEGMENT_MS: 60000    # Force log segment roll every 1 minute
+      KAFKA_LOG_RETENTION_CHECK_INTERVAL_MS: 30000  # Check for deletion every 30 seconds
     depends_on:
       zookeeper:
         condition: service_healthy
+        
 
   control-center:
     image: confluentinc/cp-enterprise-control-center:7.7.1

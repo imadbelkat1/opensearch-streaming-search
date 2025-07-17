@@ -3,6 +3,7 @@ package config
 import (
 	"bufio"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -48,4 +49,17 @@ func GetEnv(key, fallback string) string {
 		return value
 	}
 	return fallback
+}
+
+func GetEnvInt(key string, fallback int) int {
+	valueStr := GetEnv(key, "")
+	if valueStr == "" {
+		return fallback
+	}
+
+	value, err := strconv.Atoi(valueStr)
+	if err != nil {
+		return fallback
+	}
+	return value
 }
